@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+<canvas id="canvas" width="500" height="500">gg</canvas>
+<script>
+  window.onload = function () {
+    const canvas = document.querySelector('#canvas')
+    const ctx = canvas.getContext('2d')
+    const {width, height} = canvas
+    const {PI} = Math
+    const s = new Sprite({
+      x: width / 2,
+      y: height,
+      vx: 5,
+      vy: 5,
+      r: 10
+    })
+    const bulletList = []
+    const enemyList = []
+    let score = 0
+    let level = 0
+
+    function Sprite({x = 100, y = 100, vx = 5, vy = 5, r = 10, bgColor = 'green'}) {
+      this.x = x
+      this.y = y
+      this.r = r
+      this.vx = vx
+      this.vy = vy
+      this.bgColor = bgColor
+      this.exists = true
+      this.draw = function () {
+        for (let i = 0; i < enemyList.length; i++) {
+          if (getCtxScope(enemyList[i]).isPointInPath(this.x, this.y)) {
+            this.exists = false
+          }
+        }
+        if (!this.exists) {
+          this.bgColor = 'rgba(0,255,0,0.3)'
+          setTimeout(() => {
+            this.bgColor = 'green'
+          }, 1000)
+        }
+        ctx.beginPath()
+        ctx.arc(this.x, this.y, this.r, 0, 2 * PI, true)
+        ctx.closePath()
+        ctx.fillStyle = this.bgColor
+        ctx.fill()
+      }
+      this.shoot = function () {
+        if (bulletList.length >= 10) {
+        } else {
+          const b = new Bullet({
+            x: this.x,
+            y: this.y - this.r
+          })
+          bulletList.push(b)
+        }
+      }
+    }
+
+    function Bullet({x, y, r = 3, vx = 5, vy = 5, bgColor = 'yellow'}) {
+      this.x = x
+      this.y = y
+      this.r = r
+      this.vx = vx
+      this.vy = vy
+      this.bgColor = bgColor
+      this.exists = true
+      this.draw = function () {
+        if (this.height < 0) {
+          this.exists = false
+        }
+        if (!this.exists) {
+          for (let i = 0; i < bulletList.length; i++) {
+            if (bulletList[i] === this) {
+              bulletList[i] = null
+              bulletList.splice(i, 1)
+              break
+            }
+          }
+        } else {
+          ctx.beginPath()
+          ctx.arc(this.x, this.y, this.r, 0, 2 * PI, true)
+          ctx.closePath()
+          ctx.fillStyle = this.bgColor
+          ctx.fill()
+        }
+      }
+    }
+
+    function getCtxScope({x, y, r}) {
+
+      ctx.beginPath()
+      ctx.arc(x, y, r, 0, 2 * PI)
+      ctx.closePath()
+      return ctx
+    }
+
+    function Enemy({x = 0, y = 15, r = 15, vy = 1, bgColor = 'red'}) {
+      this.x = x
+      this.y = y
+      this.r = r
+      this.vy = vy
+      this.bgColor = bgColor
+      this.exists = true
+      this.draw = function () {
+        bulletList.forEach(b => {
+          if (getCtxScope(this).isPointInPath(b.x, b.y)) {
+            this.exists = false
+            score++
+          }
+        })
+        if (this.y > height) {
+          this.exists = false
+        }
+        if (!this.exists) {
+          for (let i = 0; i < enemyList.length; i++) {
+            if (enemyList[i] === this) {
+              enemyList[i] = null
+              enemyList.splice(i, 1)
+              break;
+            }
+          }
+        } else {
+          ctx.beginPath()
+          ctx.arc(this.x, this.y, this.r, 0, 2 * PI, true)
+          ctx.closePath()
+          ctx.fillStyle = this.bgColor
+          ctx.fill()
+        }
+      }
+    }
+
+    function generateEnemy(ct) {
+      let count = ct || Math.ceil(Math.random() * 2)
+      if (enemyList.length > 5 + count) return
+      while (count > 0) {
+        const e = new Enemy({
+          x: width * Math.random(),
+          y: 15,
+        })
+        enemyList.push(e)
+        count--
+      }
+    }
+
+    function clear() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+      ctx.fillRect(0, 0, width, height)
+    }
+
+    function draw() {
+      clear()
+      generateEnemy()
+      s.draw()
+      bulletList.forEach(b => {
+        b.y -= b.vy
+        b.draw()
+      })
+      enemyList.forEach(e => {
+        e.y += e.vy
+        e.draw()
+      })
+      requestAnimationFrame(draw)
+    }
+
+
+    window.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        s.shoot()
+      }
+    })
+    window.addEventListener('keydown', ev => {
+      if (ev.key === 'ArrowRight') {
+        s.x += s.vx
+        if ((s.x + s.vx) > width) {
+          s.x = 0
+        }
+      }
+    })
+    window.addEventListener('keydown', ev => {
+      if (ev.key === 'ArrowLeft') {
+        s.x -= s.vx
+        if ((s.x - s.vx) < 0) {
+          s.x = width
+        }
+      }
+    })
+    requestAnimationFrame(draw)
+  }
+</script>
+</body>
+</html>
