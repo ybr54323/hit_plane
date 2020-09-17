@@ -51,115 +51,24 @@
     // ctx.drawImage(img, 0, 0, 100, 100, 200, 200, 100, 100) // 图片上的(x, y), 图片的宽高, canvas的绘图点(左上角), 绘图的宽高
   }
 
-  // // 动画
-  // {
-  //   let x = y = 0;
-  //
-  //   function sDraw() {
-  //     ctx.fillStyle = 'rgba(255,255,255,0.1)'
-  //     ctx.fillRect(0, 0, canvas.width, canvas.height) // 清屏
-  //
-  //     x++
-  //     y++
-  //     ctx.beginPath()
-  //     ctx.arc(x, y, 100, 0, 2 * Math.PI)
-  //     ctx.fillStyle = 'red'
-  //     ctx.fill()
-  //     ctx.closePath()
-  //     requestAnimationFrame(draw)
-  //   }
-  //
-  //   function rDraw() {
-  //     ctx.fillStyle = 'rgba(255,255,255,0.1)'
-  //     ctx.fillRect(0, 0, canvas.width, canvas.height) // 清屏
-  //
-  //     x++
-  //     y++
-  //     ctx.beginPath()
-  //     ctx.arc(x, y, 100, 0, 2 * Math.PI)
-  //     ctx.fillStyle = 'red'
-  //     ctx.fill()
-  //     ctx.closePath()
-  //     requestAnimationFrame(draw)
-  //   }
-  //
-  //   requestAnimationFrame(function () {
-  //     rDraw()
-  //   })
-  //   setInterval(function () {
-  //     sDraw()
-  //   })
-  // }
-
-
+  // 动画
   {
-    // 为什么要用requestAnimationFrame来绘制动画
-    // 1.fps
-    let sCount = 60
-    let rCount = 60
-    console.time('setInterval执行60次耗时:')
-    console.time('requestAnimationFrame执行60次耗时')
-    // 2.动画顺畅比较
     let sX = sY = rX = rY = 0
-    console.time('setInterval动画完成耗时:')
-    console.time('requestAnimationFrame动画完成耗时:')
-    let sCompleteDraw = rCompleteDraw = false
-
-
-    let rId = requestAnimationFrame(sub)
-    let sId = setInterval(function () {
-      if (sCount <= 0) {
-        console.timeEnd('setInterval执行60次耗时:')
-        clearInterval(sId)
-        return
-      }
-      // for (let i = 0; i < 100; i++) { // 压测
-      //   for (let i = 0; i < 100; i++) {
-      //     for (let i = 0; i < 100; i++) {
-      //       for (let i = 0; i < 100; i++) {
-      //
-      //       }
-      //     }
-      //   }
-      // }
-      sDraw()
-      sCount--
-    })
-
-    function sub() {
-      // for (let i = 0; i < 100; i++) { // 压测
-      //   for (let i = 0; i < 100; i++) {
-      //     for (let i = 0; i < 100; i++) {
-      //       for (let i = 0; i < 100; i++) {
-      //
-      //       }
-      //     }
-      //   }
-      // }
-      rDraw()
-      if (rCount <= 0) {
-        console.timeEnd('requestAnimationFrame执行60次耗时') // 996ms -> 996 / 60 = 16ms 执行一次
-        cancelAnimationFrame(rId)
-      } else {
-        rCount--
-        rId = requestAnimationFrame(sub)
-      }
-    }
+    let sDone = rDone = false
 
     function sDraw() {
-      if (sX - 100 >= canvas.width) { // 以出界作为动画完成的标志
-        if (sCompleteDraw) {
-          return
-        }
-        sCompleteDraw = true
-        console.timeEnd('setInterval动画完成耗时:')
-        return
-      }
-      ctx.fillStyle = 'rgba(255,255,255,0.1)'
+      ctx.fillStyle = 'rgba(255,255,255)'
       ctx.fillRect(0, 0, canvas.width, canvas.height) // 清屏
 
       sX++
       sY++
+      if (sX >= canvas.width + 50) {
+        if (sDone) {
+          return
+        }
+        sDone = true
+        console.timeEnd('setInterval')
+      }
       ctx.beginPath()
       ctx.arc(sX, sY, 100, 0, 2 * Math.PI)
       ctx.fillStyle = 'red'
@@ -168,19 +77,18 @@
     }
 
     function rDraw() {
-      if (rX - 100 >= canvas.width) { // 以出界作为动画完成的标志
-        if (rCompleteDraw) {
-          return
-        }
-        rCompleteDraw = true
-        console.timeEnd('requestAnimationFrame动画完成耗时:')
-        return
-      }
-      ctx.fillStyle = 'rgba(255,255,255,0.1)'
+      ctx.fillStyle = 'rgba(255,255,255,0.9)'
       ctx.fillRect(0, 0, canvas.width, canvas.height) // 清屏
 
       rX++
       rY++
+      if (rX >= canvas.width + 50) {
+        if (rDone) {
+          return
+        }
+        rDone = true
+        console.timeEnd('requestAnimationFrame')
+      }
       ctx.beginPath()
       ctx.arc(rX, rY, 100, 0, 2 * Math.PI)
       ctx.fillStyle = 'green'
@@ -188,7 +96,112 @@
       ctx.closePath()
       requestAnimationFrame(rDraw)
     }
+
+    console.time('requestAnimationFrame')
+    console.time('setInterval')
+    requestAnimationFrame(rDraw)
+    setInterval(sDraw, 16.7)
+
   }
+
+
+  // {
+  //   // 为什么要用requestAnimationFrame来绘制动画
+  //   // 1.fps
+  //   let sCount = 60
+  //   let rCount = 60
+  //   console.time('setInterval执行60次耗时:')
+  //   console.time('requestAnimationFrame执行60次耗时')
+  //   // 2.动画顺畅比较
+  //   let sX = sY = rX = rY = 0
+  //   console.time('setInterval动画完成耗时:')
+  //   console.time('requestAnimationFrame动画完成耗时:')
+  //   let sCompleteDraw = rCompleteDraw = false
+  //
+  //
+  //   let rId = requestAnimationFrame(sub)
+  //   let sId = setInterval(function () {
+  //     if (sCount <= 0) {
+  //       console.timeEnd('setInterval执行60次耗时:')
+  //       clearInterval(sId)
+  //       return
+  //     }
+  //     // for (let i = 0; i < 100; i++) { // 压测
+  //     //   for (let i = 0; i < 100; i++) {
+  //     //     for (let i = 0; i < 100; i++) {
+  //     //       for (let i = 0; i < 100; i++) {
+  //     //
+  //     //       }
+  //     //     }
+  //     //   }
+  //     // }
+  //     sDraw()
+  //     sCount--
+  //   })
+  //
+  //   function sub() {
+  //     // for (let i = 0; i < 100; i++) { // 压测
+  //     //   for (let i = 0; i < 100; i++) {
+  //     //     for (let i = 0; i < 100; i++) {
+  //     //       for (let i = 0; i < 100; i++) {
+  //     //
+  //     //       }
+  //     //     }
+  //     //   }
+  //     // }
+  //     rDraw()
+  //     if (rCount <= 0) {
+  //       console.timeEnd('requestAnimationFrame执行60次耗时') // 996ms -> 996 / 60 = 16ms 执行一次
+  //       cancelAnimationFrame(rId)
+  //     } else {
+  //       rCount--
+  //       rId = requestAnimationFrame(sub)
+  //     }
+  //   }
+  //
+  //   function sDraw() {
+  //     if (sX - 100 >= canvas.width) { // 以出界作为动画完成的标志
+  //       if (sCompleteDraw) {
+  //         return
+  //       }
+  //       sCompleteDraw = true
+  //       console.timeEnd('setInterval动画完成耗时:')
+  //       return
+  //     }
+  //     ctx.fillStyle = 'rgba(255,255,255,0.1)'
+  //     ctx.fillRect(0, 0, canvas.width, canvas.height) // 清屏
+  //
+  //     sX++
+  //     sY++
+  //     ctx.beginPath()
+  //     ctx.arc(sX, sY, 100, 0, 2 * Math.PI)
+  //     ctx.fillStyle = 'red'
+  //     ctx.fill()
+  //     ctx.closePath()
+  //   }
+  //
+  //   function rDraw() {
+  //     if (rX - 100 >= canvas.width) { // 以出界作为动画完成的标志
+  //       if (rCompleteDraw) {
+  //         return
+  //       }
+  //       rCompleteDraw = true
+  //       console.timeEnd('requestAnimationFrame动画完成耗时:')
+  //       return
+  //     }
+  //     ctx.fillStyle = 'rgba(255,255,255,0.1)'
+  //     ctx.fillRect(0, 0, canvas.width, canvas.height) // 清屏
+  //
+  //     rX++
+  //     rY++
+  //     ctx.beginPath()
+  //     ctx.arc(rX, rY, 100, 0, 2 * Math.PI)
+  //     ctx.fillStyle = 'green'
+  //     ctx.fill()
+  //     ctx.closePath()
+  //     requestAnimationFrame(rDraw)
+  //   }
+  // }
 
 
 </script>
