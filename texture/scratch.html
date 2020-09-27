@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <style>
+    * {
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+<canvas id="canvas">gg</canvas>
+</body>
+<script>
+  const canvas = document.querySelector('#canvas')
+  const ctx = canvas.getContext('2d')
+
+  const base = document.createElement('canvas'); // 画布外画
+  const baseCtx = base.getContext('2d')
+
+
+  const width = canvas.width = base.width = 300
+  const height = canvas.height = base.height = 200
+
+  let chickenTextureList
+  const chickenList = []
+  const tapTail = [] // 运动轨迹
+
+  chickenTextureList = getTexture()
+
+
+  function getTexture() {
+    const res = []
+    for (let i = 0; i < 2; i++) {
+      const img = new Image()
+      img.src = './chicken' + (i + 1) + '.png'
+      res.push(img)
+    }
+    return res
+  }
+
+
+  function Ele(x, y, {
+    r,
+    fillStyle,
+  }) {
+    this.x = x
+    this.y = y
+    this.r = r
+    this.fillStyle = fillStyle
+  }
+
+  Ele.prototype.draw = function () {
+    ctx.beginPath()
+    ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI)
+    ctx.fillStyle = this.fillStyle
+    ctx.fill()
+    ctx.closePath()
+  }
+
+  function Point(x, y, params) {
+    Ele.call(this, x, y, params)
+    this.active = false
+  }
+
+
+  Point.prototype = Object.create(Ele.prototype)
+  Point.constructor = Point
+
+  Point.prototype.createPath = function () {
+    ctx.beginPath()
+    ctx.arc(this.x, this.y, this.r, 0, 2 * Math.PI)
+    ctx.closePath()
+  }
+
+  function Chicken(x, y, params) {
+    Ele.call(this, x, y, params)
+    const {width, height, texture} = params
+    this.width = width
+    this.height = height
+    this.texture = texture
+    this.points = []
+    this.activeCount = 0
+    this.finish = false
+  }
+
+  Chicken.prototype = Object.create(Chicken.prototype)
+  Chicken.constructor = Chicken
+  Chicken.prototype.draw = function () {
+    baseCtx.beginPath()
+    baseCtx.drawImage(this.texture, this.x, this.y, this.width, this.height)
+    baseCtx.closePath()
+  }
+
+  Chicken.prototype.initPoints = function () {
+    if (this.points.length) return
+    // const pRadius = least(this.width, this.height)
+    // if (!pRadius) throw new Error('pRadius值错误:\n', pRadius)
+
+    for (let i = 0; i < this.width / 20; i++) {
+      for (let j = 0; j < this.height / 20; j++) {
+        const p = new Point(i * 20 + this.x, j * 20 + this.y, {r: 10})
+        this.points.push(p)
+      }
+    }
+    console.log(this.points)
+  }
+
+  function Tap(x, y, params) {
+    Ele.call(this, x, y, params)
+  }
+
+  Tap.prototype = Object.create(Ele.prototype)
+  Tap.constructor = Tap
+
+  Tap.prototype.draw = function () {
+    ctx.drawImage(base, this.x, this.y, this.r, this.r, this.x, this.y, this.r, this.r)
+  }
+
+  function random(min, max) {
+    return Math.random() * (max - min)
+  }
+
+  /**
+   * 最小公约数
+   * @param min
+   * @param max
+   */
+  function least(min, max) {
+    if (!min || !max || min === 1 || max === 1) {
+      throw new Error('min或者max为1无意义')
+    }
+    for (let i = 1; i <= min && i <= max; i++) {
+      if (i !== 1 && min % i === 0 && max % i === 0) {
+        return i
+      }
+    }
+  }
+
+  function drawBase() { // 画出画布外画
+    let cWidth, cHeight;
+    cWidth = cHeight = 50
+
+    baseCtx.fillStyle = 'skyblue'
+    baseCtx.fillRect(0, 0, width, height)
+    while (chickenList.length < 2) {
+      const c = new Chicken(random(cWidth, width - cWidth), random(cHeight, height - cHeight), {
+        width: cWidth,
+        height: cHeight,
+        texture: chickenTextureList[Math.floor(Math.random() * 2)]
+      })
+      c.initPoints()
+      chickenList.push(c)
+    }
+    chickenList.forEach(c => {
+      c.draw()
+    })
+  }
+
+  let isMouseDown = false
+  canvas.addEventListener('mousedown', function (e) {
+    isMouseDown = true
+  })
+  canvas.addEventListener('mouseup', function (e) {
+    isMouseDown = false
+  })
+
+  canvas.addEventListener('mousemove', function (e) {
+    if (!isMouseDown) return
+    const {clientX, clientY} = e
+    for (let i = 0; i < tapTail.length; i++) { // handle repeat
+      if (tapTail[i].x === clientX && tapTail[i].y === clientY) {
+        return
+      }
+    }
+    tapTail.push(new Tap(clientX, clientY, {r: 20}))
+    for (let i = 0; i < chickenList.length; i++) {
+      const c = chickenList[i]
+      for (let i = 0; i < c.points.length; i++) {
+        const p = c.points[i]
+        p.createPath()
+        if (ctx.isPointInPath(clientX, clientY) && !p.active) {
+          p.active = true
+          c.activeCount++
+        }
+        ctx.closePath()
+      }
+      console.log(`总个数: ${c.points.length}\n点中个数: ${c.activeCount}`)
+      if (c.activeCount >= c.points.length) { // all active
+        c.finish = true
+      }
+    }
+  })
+
+  let rId
+
+  function loop() {
+    if (!rId) {
+      drawBase() // 画外画布画一次就够
+    }
+    ctx.fillStyle = 'gray'
+    ctx.fillRect(0, 0, width, height)
+    tapTail.forEach(t => {
+      t.draw()
+    })
+    const allFinish = chickenList.every((c) => {
+      return c.finish
+    })
+    if (allFinish) {
+      cancelAnimationFrame(rId)
+      alert('finish')
+      return
+    }
+    rId = requestAnimationFrame(loop)
+  }
+
+  loop()
+</script>
+</html>

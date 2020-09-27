@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+<canvas id="canvas" width="500" height="500">浏览器不支持canvas显示的文案</canvas>
+<canvas style="display: none" id="bg">浏览器不支持canvas显示的文案</canvas>
+<h1 id="score"></h1>
+<script>
+  window.onload = function () {
+    const canvas = document.querySelector('#canvas') // 主场景
+    const bg = document.querySelector('#bg') // 星空背景
+    const sB = document.querySelector('#score') // 记分牌
+    const ctx = canvas.getContext('2d')
+    const {width, height} = canvas
+    const {PI} = Math
+    const textureList = [] // 纹理列表
+    for (let i = 0; i < 6; i++) { // 读取纹理
+      const img = new Image()
+      img.src = `./texture/metal${i}.png`
+      textureList.push(img)
+    }
+
+    const bulletList = [] // 存放子弹的列表
+    const enemyList = [] // 存放敌人的列表
+    let score = 0 // 分数
+    const player = new Player({
+      x: width / 2,
+      y: height,
+      w: 30,
+      h: 15,
+      vx: 5,
+      vy: 5,
+    })
+    window.addEventListener('keydown', e => {
+      switch (e.key) {
+        case 'Enter': // 回车和空格 开火
+        case ' ':
+          player.shoot()
+          break
+        case 'ArrowRight':
+          player.x += player.vx
+          if ((player.x + player.vx) > width) { // 判断边界情况
+            player.x = 0
+          }
+          break
+        case 'ArrowLeft':
+          player.x -= player.vx
+          if ((player.x - player.vx) < 0) { // 判断边界情况
+            player.x = width
+          }
+          break
+        case 'ArrowUp':
+          player.y -= player.vy
+          if ((player.v - player.vy) < 0) { // 判断边界情况
+            return
+          }
+          break
+        case 'ArrowDown':
+          player.y += player.vy
+          if ((player.y + player.vy) > height) { // 判断边界情况
+            return
+          }
+          break
+      }
+    })
+    draw()
+
+
+    /**
+     * 等腰三角形
+     * @param x 等腰三角形底边的中点的x轴坐标
+     * @param y 等腰三角形底边的中点的y轴坐标
+     * @param w 底边宽度
+     * @param h 高
+     * @param vx  x轴方向的速度
+     * @param vy  y轴方向的速度
+     * @param texture 纹理img结点
+     */
+    function Player({x = width / 2, y = height, w = 10, h = 10, vx = 5, vy = 5, texture}) {
+      this.x = x
+      this.y = y
+      this.w = w
+      this.h = h
+      this.vx = vx
+      this.vy = vy
+      this.texture = texture
+      this.survive = true
+      this.blood = 3 // 血量
+      this.draw = function () {
+        ctx.save()
+        let flag = false
+        for (let i = 0; i < enemyList.length; i++) { // 循环所有的敌人、判断是否有敌人触碰到玩家、有->输
+          if (!flag) { // 只绘制一次路径就行了
+            getPlayerScope(this)
+            flag = true
+          }
+          if (ctx.isPointInPath(enemyList[i].x, enemyList[i].y)) {
+            enemyList[i].survive = false
+            this.survive = false
+            this.blood--
+          }
+        }
+        if (this.blood <= 0) {
+          ctx.fillStyle = 'red'
+          ctx.fill()
+        } else {
+          ctx.clip()
+          ctx.drawImage(textureList[0], this.x - w / 2, this.y - h, w, h)
+        }
+        ctx.restore()
+      }
+      this.shoot = function () {
+        // if (bulletList.length >= 10) {
+        // } else {
+        const b = new Bullet({
+          x: this.x,
+          y: this.y - this.h
+        })
+        bulletList.push(b)
+        // }
+      }
+    }
+
+
+    /**
+     * 圆形
+     * @param x 圆心的x轴坐标
+     * @param y 圆心的y轴坐标
+     * @param r 园半径
+     * @param vx  x轴方向的速度
+     * @param vy  y轴方向的速度
+     * @param bgColor 背景颜色
+     */
+    function Bullet({x, y, r = 3, vx = 5, vy = 5, bgColor = 'yellow'}) {
+      this.x = x
+      this.y = y
+      this.vx = vx
+      this.vy = vy
+      this.r = r
+      this.bgColor = bgColor
+      this.survive = true;
+      this.draw = function () {
+        ctx.save()
+        if (this.y < 0) { // 出界
+          this.survive = false
+        }
+        if (!this.survive) {
+          for (let i = 0; i < bulletList.length; i++) {
+            if (bulletList[i] === this) {
+              bulletList[i] = null
+              bulletList.splice(i, 1)
+              break
+            }
+          }
+        } else {
+          getCircleScope(this)
+          ctx.fillStyle = this.bgColor
+          ctx.fill()
+        }
+        ctx.restore()
+      }
+    }
+
+
+    function Enemy({x = 0, y = 15, r = 15, vx = 1, vy = 1, texture}) {
+      this.x = x
+      this.y = y
+      this.vx = vx
+      this.vy = vy
+      this.r = r
+      this.survive = true;
+      this.texture = texture
+      this.draw = function () {
+        ctx.save()
+        let flag = false
+        bulletList.forEach(b => {
+          if (!flag) {
+            getCircleScope({x: this.x, y: this.y, r: this.r + b.r})
+            flag = true
+          }
+          if (ctx.isPointInPath(b.x, b.y)) { // 判断子弹是否击中敌人
+            b.survive = false
+            this.survive = false
+            score++
+          }
+        })
+        if (this.y - this.r > height || this.x + this.r <= 0 || this.x - r >= width) { // 判断是否出界
+          this.survive = false
+        }
+        if (!this.survive) {
+          for (let i = 0; i < enemyList.length; i++) {
+            if (enemyList[i] === this) {
+              enemyList[i] = null
+              enemyList.splice(i, 1)
+              break;
+            }
+          }
+        } else {
+          getCircleScope(this)
+          ctx.clip()
+          ctx.drawImage(this.texture, this.x - r, this.y - r)
+        }
+        ctx.restore()
+      }
+    }
+
+    // 返回一个根据参数绘制的ctx圆形闭合路径
+    function getCircleScope({x, y, r}) {
+      ctx.beginPath()
+      ctx.arc(x, y, r, 0, 2 * PI)
+      ctx.closePath()
+    }
+
+    // 返回三角形路径
+    function getPlayerScope({x, y, w, h}) {
+      ctx.beginPath()
+      ctx.moveTo(x - (w / 2), y)
+      ctx.lineTo(x + (w / 2), y)
+      ctx.lineTo(x, y - h)
+      ctx.closePath()
+    }
+
+    // 生成敌人
+    function createEnemy(score = 0) {
+      let addCount = Math.ceil(Math.random() * score)
+      if (enemyList.length > 10 + addCount) return
+      while (enemyList.length <= 10 + addCount) {
+        const e = new Enemy({
+          x: width * Math.random(),
+          y: 15,
+          r: Math.random() * 15 + 15,
+          vx: Math.random(),
+          vy: Math.random(),
+          texture: textureList[Math.ceil(Math.random() * 5)]
+        })
+        enemyList.push(e)
+      }
+    }
+
+    // 清屏
+    function clear() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+      // ctx.fillRect(0, 0, width, height)
+      ctx.drawImage(bg, 0, 0, width, height)
+    }
+
+    function draw() {
+      sB.innerText = `score: ${score}`
+      clear()
+      createEnemy(score)
+      player.draw()
+      bulletList.forEach(b => {
+        b.y -= b.vy
+        b.draw()
+      })
+      enemyList.forEach((e, index) => {
+        e.y += e.vy
+        const sign = index % 2 ? -1 : 1
+        e.x += e.vx * sign
+        e.draw()
+      })
+      requestAnimationFrame(draw)
+    }
+  }
+</script>
+
+<script>
+  canvas("bg", 230, 1000, 60, 2, 50000, 0.5);
+
+  //canvas的id名，星星颜色(hsla的hue色调)，星星数量，星星半径比，星星移动范围(值越大范围越小)，星星移动速度(值越大速度越慢),星星拖尾效果(0~1值越小拖尾越明显)
+  function canvas(id, starscolor, starsamount, starsradius, movrange, speed, trailing) {
+    //宇宙特效
+    "use strict";
+    var canvas = document.getElementById(id),
+      ctx = canvas.getContext('2d'),
+      w = canvas.width = window.innerWidth,
+      h = canvas.height = window.innerHeight,
+
+      hue = starscolor,//230
+      stars = [],
+      count = 0,
+      maxStars = starsamount;//星星数量
+
+    var canvas2 = document.createElement('canvas'),
+      ctx2 = canvas2.getContext('2d');
+    canvas2.width = 100;
+    canvas2.height = 100;
+    var half = canvas2.width / 2,
+      gradient2 = ctx2.createRadialGradient(half, half, 0, half, half, half);
+    gradient2.addColorStop(0.025, '#CCC');
+    gradient2.addColorStop(0.1, 'hsl(' + hue + ', 61%, 33%)');
+    gradient2.addColorStop(0.25, 'hsl(' + hue + ', 64%, 6%)');
+    gradient2.addColorStop(1, 'transparent');
+
+    ctx2.fillStyle = gradient2;
+    ctx2.beginPath();
+    ctx2.arc(half, half, half, 0, Math.PI * 2);
+    ctx2.fill();
+
+// End cache
+
+    function random(min, max) {
+      if (arguments.length < 2) {
+        max = min;
+        min = 0;
+      }
+
+      if (min > max) {
+        var hold = max;
+        max = min;
+        min = hold;
+      }
+
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function maxOrbit(x, y) {
+      var max = Math.max(x, y),
+        diameter = Math.round(Math.sqrt(max * max + max * max));
+      return diameter / movrange;
+      //星星移动范围，值越大范围越小，
+    }
+
+    var Star = function () {
+
+      this.orbitRadius = random(maxOrbit(w, h));
+      this.radius = random(starsradius, this.orbitRadius) / 8;
+      //星星半径大小
+      this.orbitX = w / 2;
+      this.orbitY = h / 2;
+      this.timePassed = random(0, maxStars);
+      this.speed = random(this.orbitRadius) / speed;
+      //星星移动速度
+      this.alpha = random(2, 10) / 10;
+
+      count++;
+      stars[count] = this;
+    }
+
+    Star.prototype.draw = function () {
+      var x = Math.sin(this.timePassed) * this.orbitRadius + this.orbitX,
+        y = Math.cos(this.timePassed) * this.orbitRadius + this.orbitY,
+        twinkle = random(10);
+
+      if (twinkle === 1 && this.alpha > 0) {
+        this.alpha -= 0.05;
+      } else if (twinkle === 2 && this.alpha < 1) {
+        this.alpha += 0.05;
+      }
+
+      ctx.globalAlpha = this.alpha;
+      ctx.drawImage(canvas2, x - this.radius / 2, y - this.radius / 2, this.radius, this.radius);
+      this.timePassed += this.speed;
+    }
+
+    for (var i = 0; i < maxStars; i++) {
+      new Star();
+    }
+
+    function animation() {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = trailing; //尾巴
+      ctx.fillStyle = 'hsla(' + hue + ', 64%, 6%, 2)';
+      ctx.fillRect(0, 0, w, h)
+
+      ctx.globalCompositeOperation = 'lighter';
+      for (var i = 1, l = stars.length; i < l; i++) {
+        stars[i].draw();
+      }
+
+
+      window.requestAnimationFrame(animation);
+    }
+
+    animation();
+  }
+</script>
+</body>
+</html>
